@@ -1,32 +1,16 @@
-import { PrismaClient } from '@prisma/client';
 import bodyParser from 'body-parser';
-import express, { RequestHandler } from 'express';
-
-const prisma = new PrismaClient();
+import express, { RequestHandler, Express } from 'express';
+import { logger } from './middleware';
+import { businessController } from './business';
 
 const app = express();
 const PORT = 3000;
 
-const logger: RequestHandler = (req, _res, next) => {
-  const url = req.originalUrl;
-  const method = req.method;
-  console.info(`(${method}) ${url}`);
-  next();
-};
+const middleware: RequestHandler[] = [logger, bodyParser.json()];
+const controllers: ((app: Express) => void)[] = [businessController];
 
-app.use(logger);
-app.use(bodyParser.json());
-
-app.get('/business', async (_req, res) => {
-  const businesses = await prisma.business.findMany();
-  res.json(businesses);
-});
-
-app.post('/business', async (req, res) => {
-  const { name } = req.body;
-  const businesses = await prisma.business.create({ data: { name } });
-  res.json(businesses);
-});
+middleware.forEach((mw) => app.use(mw));
+controllers.forEach((c) => c(app));
 
 app.listen(PORT, () => {
   console.log(`Express server listening on http://localhost:${PORT}`);
